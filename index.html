@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Matvey Rogov - Interactive Terminal</title>
+    <title>John Doe - Interactive Terminal</title>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -11,8 +11,6 @@
             --border: #333;
             --term-bg: #0a0a0a;
             --title-bg: #1a1a1a;
-            
-            /* Terminal Colors */
             --c-green: #00ff00;
             --c-cyan: #00ffff;
             --c-amber: #ffb000;
@@ -20,7 +18,6 @@
             --c-white: #e0e0e0;
             --c-gray: #666;
             --c-red: #ff3333;
-            
             font-family: 'Fira Code', monospace;
         }
 
@@ -34,7 +31,6 @@
             position: relative;
         }
 
-        /* Эффект CRT монитора (scanlines) */
         body::after {
             content: " ";
             display: block;
@@ -120,7 +116,6 @@
         ::-webkit-scrollbar-thumb { background: #333; }
         ::-webkit-scrollbar-thumb:hover { background: #555; }
 
-        /* Кликабельные ссылки в терминале */
         .term-link {
             color: var(--c-magenta);
             text-decoration: underline;
@@ -133,7 +128,6 @@
             color: var(--c-cyan);
         }
 
-        /* Стили для интерактивного ввода */
         .input-line {
             display: flex;
             align-items: center;
@@ -164,7 +158,7 @@
 
     <div id="desktop">
         <div class="window" id="win-identity-container">
-            <div class="titlebar"><span>root@mrogov:~</span><span>[1] tmux</span></div>
+            <div class="titlebar"><span>root@jdoe:~</span><span>[1] tmux</span></div>
             <div class="content" id="win-identity"></div>
         </div>
 
@@ -192,16 +186,16 @@
 
     <script>
         const dataIdentity = `root@bspwm:~# whoami
-NAME:     Matvey Rogov
+NAME:     John Doe
 ROLE:     System Analyst / Solution Architect
 LOC:      Russian Federation (Ready for relocation)
 EXP:      4 years, 4 months
 STATUS:   Available for Hire
 
 root@bspwm:~# ./get_contacts.sh
-[Email]   <a href="mailto:matvey.rogov@example.com" class="term-link">matvey.rogov@example.com</a>
-[Tg]      <a href="https://t.me/matvey_rogov" target="_blank" class="term-link">@matvey_rogov</a>
-[GitHub]  <a href="https://github.com/matveyrogov" target="_blank" class="term-link">github.com/matveyrogov</a>
+[Email]   <a href="mailto:johndoe@example.com" class="term-link">johndoe@example.com</a>
+[Tg]      <a href="https://t.me/username" target="_blank" class="term-link">@username</a>
+[GitHub]  <a href="https://github.com/username" target="_blank" class="term-link">github.com/username</a>
 `;
 
         const dataStack = `root@bspwm:~# cat /etc/tech_stack.conf
@@ -241,7 +235,6 @@ root@bspwm:~# ./get_contacts.sh
  [SUCCESS] Designed complex integrations (CDN, S3, KaaS).
 `;
 
-        // Исходные данные четвертого окна с кликабельными ссылками
         const dataProjects = `root@bspwm:~# ./deploy_startups_and_consulting.sh
 >> CONSULTING PROJECTS...
 [OK] Yandex Cloud: Pre-billing Optimization.
@@ -252,7 +245,7 @@ root@bspwm:~# ./get_contacts.sh
 >> LAUNCHING STARTUPS & MVP...
 [*] Lighthouse Property: Montenegro Real estate (Vue/Nuxt, Directus).
         Link: <a href="https://lighthouseproperty.me" target="_blank" class="term-link">https://lighthouseproperty.me</a>
-[*] Gemanix (MVP): AI startup risk assessment for Gazprombank.
+[*] Gemanix (MVP): AI startup for investment analysis.
         Link: <a href="https://gemanix.com" target="_blank" class="term-link">https://gemanix.com</a>
 [*] SkillScan: AI platform for candidate screening.
      Link: <a href="https://skillscan.re.pub/login" target="_blank" class="term-link">https://skillscan.re.pub/login</a>
@@ -270,18 +263,16 @@ System initialized. Type 'help' to see available commands.
             "[ OK ] Started System Logging Service.",
             "Starting Network Manager...",
             "[ OK ] Reached target Network.",
-            "Loading Matvey Rogov's Profile Data...",
+            "Loading Profile Data...",
             "Initializing Tiling Window Manager (bspwm)..."
         ];
 
-        // Продвинутый тайп-райтер с поддержкой HTML-тегов (ссылок)
         async function typeWriter(elementId, text, baseSpeed, onComplete = null) {
             const el = document.getElementById(elementId);
             let currentText = '';
             let i = 0;
 
             while (i < text.length) {
-                // Если встречаем HTML тег, добавляем его целиком без задержки
                 if (text[i] === '<') {
                     let tagEnd = text.indexOf('>', i);
                     if (tagEnd !== -1) {
@@ -294,10 +285,8 @@ System initialized. Type 'help' to see available commands.
                 currentText += text[i];
                 el.innerHTML = currentText + '<span class="cursor"></span>';
                 
-                // Автоскролл
                 el.parentElement.scrollTop = el.parentElement.scrollHeight;
 
-                // Задержка печати
                 if (baseSpeed > 0) {
                     let speed = baseSpeed;
                     if (text[i] === '\n') speed = baseSpeed * 10;
@@ -339,7 +328,6 @@ System initialized. Type 'help' to see available commands.
             }, 1000);
         }
 
-        // --- ЛОГИКА ИНТЕРАКТИВНОГО ТЕРМИНАЛА ---
         const cmdInput = document.getElementById('cmd-input');
         const winProjects = document.getElementById('win-projects');
         const contentContainer = document.getElementById('win-projects-content');
@@ -351,13 +339,10 @@ System initialized. Type 'help' to see available commands.
                 
                 if (cmd === '') return;
 
-                // Печатаем саму команду в лог
                 winProjects.innerHTML += `\n<span style="color:var(--c-green)">root@bspwm:~#</span> ${cmd}\n`;
                 
-                // Обработка команд
                 processCommand(cmd.toLowerCase());
 
-                // Автоскролл
                 contentContainer.scrollTop = contentContainer.scrollHeight;
             }
         });
@@ -381,14 +366,13 @@ System initialized. Type 'help' to see available commands.
                     break;
                 case 'clear':
                 case '/clean':
-                    // Восстанавливаем исходное отображение
                     winProjects.innerHTML = dataProjects; 
                     return; 
                 case 'whoami':
-                    output = "Matvey Rogov - System Analyst & Solution Architect\n";
+                    output = "John Doe - System Analyst & Solution Architect\n";
                     break;
                 case 'contact':
-                    output = `[Email]   <a href="mailto:matvey.rogov@example.com" class="term-link">matvey.rogov@example.com</a>\n[Tg]      <a href="https://t.me/matvey_rogov" target="_blank" class="term-link">@matvey_rogov</a>\n[GitHub]  <a href="https://github.com/matveyrogov" target="_blank" class="term-link">github.com/matveyrogov</a>\n`;
+                    output = `[Email]   <a href="mailto:johndoe@example.com" class="term-link">johndoe@example.com</a>\n[Tg]      <a href="https://t.me/username" target="_blank" class="term-link">@username</a>\n[GitHub]  <a href="https://github.com/username" target="_blank" class="term-link">github.com/username</a>\n`;
                     break;
                 case 'projects':
                     output = `[*] HRWF: <a href="https://hrwf.top/" target="_blank" class="term-link">https://hrwf.top/</a>\n[*] SkillScan: <a href="https://skillscan.re.pub/login" target="_blank" class="term-link">https://skillscan.re.pub/login</a>\n[*] Yandex: <a href="https://yandex.cloud/ru/prices" target="_blank" class="term-link">https://yandex.cloud/ru/prices</a>\n[*] T1 Cloud: <a href="https://t1-cloud.ru/calculator" target="_blank" class="term-link">https://t1-cloud.ru/calculator</a>\n`;
@@ -400,7 +384,7 @@ System initialized. Type 'help' to see available commands.
                     output = args.slice(1).join(' ') + "\n";
                     break;
                 case 'sudo':
-                    output = `<span style="color:var(--c-red)">matvey is not in the sudoers file. This incident will be reported.</span>\n`;
+                    output = `<span style="color:var(--c-red)">user is not in the sudoers file. This incident will be reported.</span>\n`;
                     break;
                 default:
                     output = `bash: ${baseCmd}: command not found. Type 'help' for available commands.\n`;
@@ -409,9 +393,7 @@ System initialized. Type 'help' to see available commands.
             winProjects.innerHTML += output;
         }
 
-        // Фокус на инпуте при клике на окно
         document.getElementById('win-projects-container').addEventListener('click', (e) => {
-            // Чтобы не перехватывать клик, если человек кликнул по ссылке
             if (e.target.tagName !== 'A') {
                 document.getElementById('cmd-input').focus();
             }
