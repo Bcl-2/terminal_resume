@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matvey Rogov - Interactive Terminal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050505;
+            --border: #333;
+            --term-bg: #0a0a0a;
+            --title-bg: #1a1a1a;
+            
+            /* Terminal Colors */
+            --c-green: #00ff00;
+            --c-cyan: #00ffff;
+            --c-amber: #ffb000;
+            --c-magenta: #ff00ff;
+            --c-white: #e0e0e0;
+            --c-gray: #666;
+            --c-red: #ff3333;
+            
+            font-family: 'Fira Code', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--c-green);
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Эффект CRT монитора (scanlines) */
+        body::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        #boot-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #000;
+            color: var(--c-white);
+            padding: 20px;
+            font-size: 14px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            white-space: pre-wrap;
+        }
+
+        #desktop {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            padding: 4px;
+            gap: 4px;
+            background-color: var(--border);
+            grid-template-columns: 35% 65%;
+            grid-template-rows: 40% 60%;
+        }
+
+        .window {
+            background-color: var(--term-bg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .titlebar {
+            background-color: var(--title-bg);
+            color: var(--c-gray);
+            font-size: 11px;
+            padding: 4px 10px;
+            display: flex;
+            justify-content: space-between;
+            user-select: none;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .content {
+            padding: 10px;
+            font-size: 13px;
+            line-height: 1.5;
+            flex-grow: 1;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        #win-identity { color: var(--c-cyan); grid-column: 1; grid-row: 1; }
+        #win-stack { color: var(--c-amber); grid-column: 1; grid-row: 2; }
+        #win-experience { color: var(--c-green); grid-column: 2; grid-row: 1; }
+        #win-projects { color: var(--c-white); grid-column: 2; grid-row: 2; cursor: text;}
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 15px;
+            background-color: currentColor;
+            animation: blink 1s step-end infinite;
+            vertical-align: text-bottom;
+        }
+
+        @keyframes blink { 50% { opacity: 0; } }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--term-bg); }
+        ::-webkit-scrollbar-thumb { background: #333; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* Кликабельные ссылки в терминале */
+        .term-link {
+            color: var(--c-magenta);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .term-link:hover {
+            background-color: #333;
+            color: var(--c-cyan);
+        }
+
+        /* Стили для интерактивного ввода */
+        .input-line {
+            display: flex;
+            align-items: center;
+            margin-top: 5px;
+        }
+        .prompt { color: var(--c-green); margin-right: 8px; }
+        .cmd-input {
+            background: transparent;
+            border: none;
+            color: var(--c-white);
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+            outline: none;
+            flex-grow: 1;
+            caret-color: var(--c-white);
+        }
+
+        @media (max-width: 768px) {
+            #desktop { display: flex !important; flex-direction: column; overflow-y: auto; height: 100vh; }
+            .window { min-height: 50vh; flex-shrink: 0; }
+            body::after { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="boot-screen"></div>
+
+    <div id="desktop">
+        <div class="window" id="win-identity-container">
+            <div class="titlebar"><span>root@mrogov:~</span><span>[1] tmux</span></div>
+            <div class="content" id="win-identity"></div>
+        </div>
+
+        <div class="window" id="win-stack-container">
+            <div class="titlebar"><span>/etc/tech_stack.yml</span><span>[2] tmux</span></div>
+            <div class="content" id="win-stack"></div>
+        </div>
+
+        <div class="window" id="win-experience-container">
+            <div class="titlebar"><span>/var/log/sys_experience.log</span><span>[3] tmux</span></div>
+            <div class="content" id="win-experience"></div>
+        </div>
+
+        <div class="window" id="win-projects-container" onclick="document.getElementById('cmd-input').focus()">
+            <div class="titlebar"><span style="color:var(--c-magenta);">root@bspwm:~/workspace</span><span>[4] INTERACTIVE</span></div>
+            <div class="content" id="win-projects-content">
+                <div id="win-projects"></div>
+                <div class="input-line" id="input-line" style="display: none;">
+                    <span class="prompt">root@bspwm:~#</span>
+                    <input type="text" class="cmd-input" id="cmd-input" autocomplete="off" spellcheck="false">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dataIdentity = `root@bspwm:~# whoami
+NAME:     Matvey Rogov
+ROLE:     System Analyst / Solution Architect
+LOC:      Russian Federation (Ready for relocation)
+EXP:      4 years, 4 months
+STATUS:   Available for Hire
+
+root@bspwm:~# ./get_contacts.sh
+[Email]   <a href="mailto:matvey.rogov@example.com" class="term-link">matvey.rogov@example.com</a>
+[Tg]      <a href="https://t.me/matvey_rogov" target="_blank" class="term-link">@matvey_rogov</a>
+[GitHub]  <a href="https://github.com/matveyrogov" target="_blank" class="term-link">github.com/matveyrogov</a>
+`;
+
+        const dataStack = `root@bspwm:~# cat /etc/tech_stack.conf
+[ARCHITECTURE]
+> Microservices / SOA
+> Enterprise Service Bus (ESB)
+> REST API / gRPC
+> Cloud Architecture
+> Docs-as-Code
+
+[DATA & BROKERS]
+> ERP Database Architecture
+> PostgreSQL, Redis
+> Kafka / Message Brokers
+
+[LANGUAGES & TOOLS]
+> Golang
+> Vue.js / Nuxt
+> Python (pyTest/Selenium)
+`;
+
+        const dataExperience = `root@bspwm:~# tail -f /var/log/core_experience.log
+[SYS_INIT] Loading core experience modules...
+
+[2024-06:PRESENT] 01Tech | System Analyst
+ - Systematized FR/NFR development processes.
+ - Configured docs-to-code pipelines (GitLab) & deployed to Cloud.
+ [SUCCESS] Implemented AI assessment (SkillScan) & HRWF app.
+
+[2023-05:2025-08] Alfa-Bank | SA / Solution Architect
+ - Projects: Core for "Alfa-Investments" & "AI Social Network".
+ - Designed conceptual/logical database architecture (ERP).
+ [SUCCESS] Designed core for 2 apps utilizing neural network references.
+
+[2022-11:2025-06] T1 Cloud | Lead System Analyst
+ - Prepared functional requirements for Front-end and Back-end.
+ [SUCCESS] Designed complex integrations (CDN, S3, KaaS).
+`;
+
+        // Исходные данные четвертого окна с кликабельными ссылками
+        const dataProjects = `root@bspwm:~# ./deploy_startups_and_consulting.sh
+>> CONSULTING PROJECTS...
+[OK] Yandex Cloud: Pre-billing Optimization.
+     Link: <a href="https://yandex.cloud/ru/prices" target="_blank" class="term-link">https://yandex.cloud/ru/prices</a>
+[OK] T1 Cloud: SaaS Billing Core Integrations.
+     Link: <a href="https://t1-cloud.ru/calculator" target="_blank" class="term-link">https://t1-cloud.ru/calculator</a>
+
+>> LAUNCHING OWN STARTUPS & MVP...
+[*] Lighthouse Property: Montenegro Real estate (Vue/Nuxt, Directus).
+[*] Gemanix (MVP): AI startup risk assessment for Gazprombank.
+[*] SkillScan: AI platform for candidate screening.
+     Link: <a href="https://skillscan.re.pub/login" target="_blank" class="term-link">https://skillscan.re.pub/login</a>
+[*] HRWF (MVP): IT specialist schedule analysis.
+     Link: <a href="https://hrwf.top/" target="_blank" class="term-link">https://hrwf.top/</a>
+
+System initialized. Type 'help' to see available commands.
+`;
+
+        const bootLines = [
+            "Booting Arch Linux kernel 6.8.2-arch2-1...",
+            "Loading initial ramdisk...",
+            "Mounting /dev/nvme0n1p2 on / root...",
+            "[ OK ] Reached target Local File Systems.",
+            "[ OK ] Started System Logging Service.",
+            "Starting Network Manager...",
+            "[ OK ] Reached target Network.",
+            "Loading Matvey Rogov's Profile Data...",
+            "Initializing Tiling Window Manager (bspwm)..."
+        ];
+
+        // Продвинутый тайп-райтер с поддержкой HTML-тегов (ссылок)
+        async function typeWriter(elementId, text, baseSpeed, onComplete = null) {
+            const el = document.getElementById(elementId);
+            let currentText = '';
+            let i = 0;
+
+            while (i < text.length) {
+                // Если встречаем HTML тег, добавляем его целиком без задержки
+                if (text[i] === '<') {
+                    let tagEnd = text.indexOf('>', i);
+                    if (tagEnd !== -1) {
+                        currentText += text.substring(i, tagEnd + 1);
+                        i = tagEnd + 1;
+                        continue;
+                    }
+                }
+                
+                currentText += text[i];
+                el.innerHTML = currentText + '<span class="cursor"></span>';
+                
+                // Автоскролл
+                el.parentElement.scrollTop = el.parentElement.scrollHeight;
+
+                // Задержка печати
+                if (baseSpeed > 0) {
+                    let speed = baseSpeed;
+                    if (text[i] === '\n') speed = baseSpeed * 10;
+                    await new Promise(r => setTimeout(r, Math.random() * speed));
+                }
+                i++;
+            }
+            
+            el.innerHTML = currentText;
+            if (onComplete) onComplete();
+        }
+
+        async function runBootSequence() {
+            const bootScreen = document.getElementById('boot-screen');
+            const desktop = document.getElementById('desktop');
+            
+            let bootText = "";
+            for (let i = 0; i < bootLines.length; i++) {
+                bootText += bootLines[i] + "\n";
+                bootScreen.innerText = bootText + "█";
+                await new Promise(r => setTimeout(r, 80 + Math.random() * 150));
+            }
+            
+            await new Promise(r => setTimeout(r, 300));
+            bootScreen.style.display = 'none';
+            desktop.style.display = 'grid';
+
+            typeWriter('win-identity', dataIdentity, 5);
+            setTimeout(() => typeWriter('win-stack', dataStack, 4), 300);
+            setTimeout(() => typeWriter('win-experience', dataExperience, 2), 600);
+            
+            setTimeout(() => {
+                typeWriter('win-projects', dataProjects, 3, () => {
+                    const inputLine = document.getElementById('input-line');
+                    const cmdInput = document.getElementById('cmd-input');
+                    inputLine.style.display = 'flex';
+                    cmdInput.focus();
+                });
+            }, 1000);
+        }
+
+        // --- ЛОГИКА ИНТЕРАКТИВНОГО ТЕРМИНАЛА ---
+        const cmdInput = document.getElementById('cmd-input');
+        const winProjects = document.getElementById('win-projects');
+        const contentContainer = document.getElementById('win-projects-content');
+
+        cmdInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const cmd = this.value.trim();
+                this.value = ''; 
+                
+                if (cmd === '') return;
+
+                // Печатаем саму команду в лог
+                winProjects.innerHTML += `\n<span style="color:var(--c-green)">root@bspwm:~#</span> ${cmd}\n`;
+                
+                // Обработка команд
+                processCommand(cmd.toLowerCase());
+
+                // Автоскролл
+                contentContainer.scrollTop = contentContainer.scrollHeight;
+            }
+        });
+
+        function processCommand(cmd) {
+            let output = '';
+            const args = cmd.split(' ');
+            const baseCmd = args[0];
+
+            switch(baseCmd) {
+                case 'help':
+                    output = `Available commands:
+  help       - Show this message
+  clear      - Restore the initial window display (or /clean)
+  whoami     - Display current user info
+  contact    - Display contact information
+  projects   - Show startup & consulting links
+  date       - Show current system time
+  echo       - Print text to terminal
+`;
+                    break;
+                case 'clear':
+                case '/clean':
+                    // Восстанавливаем исходное отображение
+                    winProjects.innerHTML = dataProjects; 
+                    return; 
+                case 'whoami':
+                    output = "Matvey Rogov - System Analyst & Solution Architect\n";
+                    break;
+                case 'contact':
+                    output = `[Email]   <a href="mailto:matvey.rogov@example.com" class="term-link">matvey.rogov@example.com</a>\n[Tg]      <a href="https://t.me/matvey_rogov" target="_blank" class="term-link">@matvey_rogov</a>\n[GitHub]  <a href="https://github.com/matveyrogov" target="_blank" class="term-link">github.com/matveyrogov</a>\n`;
+                    break;
+                case 'projects':
+                    output = `[*] HRWF: <a href="https://hrwf.top/" target="_blank" class="term-link">https://hrwf.top/</a>\n[*] SkillScan: <a href="https://skillscan.re.pub/login" target="_blank" class="term-link">https://skillscan.re.pub/login</a>\n[*] Yandex: <a href="https://yandex.cloud/ru/prices" target="_blank" class="term-link">https://yandex.cloud/ru/prices</a>\n[*] T1 Cloud: <a href="https://t1-cloud.ru/calculator" target="_blank" class="term-link">https://t1-cloud.ru/calculator</a>\n`;
+                    break;
+                case 'date':
+                    output = new Date().toString() + "\n";
+                    break;
+                case 'echo':
+                    output = args.slice(1).join(' ') + "\n";
+                    break;
+                case 'sudo':
+                    output = `<span style="color:var(--c-red)">matvey is not in the sudoers file. This incident will be reported.</span>\n`;
+                    break;
+                default:
+                    output = `bash: ${baseCmd}: command not found. Type 'help' for available commands.\n`;
+            }
+
+            winProjects.innerHTML += output;
+        }
+
+        // Фокус на инпуте при клике на окно
+        document.getElementById('win-projects-container').addEventListener('click', (e) => {
+            // Чтобы не перехватывать клик, если человек кликнул по ссылке
+            if (e.target.tagName !== 'A') {
+                document.getElementById('cmd-input').focus();
+            }
+        });
+
+        window.onload = runBootSequence;
+
+    </script>
+</body>
+</html>
